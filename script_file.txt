@@ -1,4 +1,4 @@
-// script for BI Report 
+// script for BI Report migration
 def passwordHandler(String input) {
    StringBuilder result = new StringBuilder()
 		for (int i = 0; i < input.length(); i++) {
@@ -20,13 +20,11 @@ pipeline {
 					def pwd = (params.PASSWORD).toString()
                     def hasPercentage = (pwd).contains('%')
 					
-					// /Custom/test1/ss.xdmz
+					// /Custom/test1/ss.xdoz
 					def tmp=(params.PATHTODEPLOY).toString()+"/"+(params.REPORTNAME).toString().replace(".xdoz","")
 					
                     if (hasPercentage) {
-					    // echo "Original pwd: ${PASSWORD}"
 						PASSWORD=passwordHandler(pwd)
-						// echo "Modifed pwd : ${PASSWORD}"
                         bat " java EncodeToBase64  ${REPORTNAME} Payload.xml ${tmp} ${USERNAME} \"${PASSWORD}\" "
                     }
 					
@@ -39,13 +37,13 @@ pipeline {
                 
 				
 					// Set the URL of the SOAP web service
-					def serviceUrl = "https://fa-erzp-dev12-saasfademo1.ds-fa.oraclepdemos.com:443/xmlpserver/services/v2/CatalogService"
+					env.serviceUrl = (params.SERVICE_URL).toString()+":443/xmlpserver/services/v2/CatalogService"
 						
 					def actualreportname = (params.REPORTNAME).replace(".xdoz",".xdo")
 					
 					def reportObjectAbsolutePath=((params.PATHTODEPLOY)+"/"+(actualreportname))
 					
-					// /Custom/test1/ss.xdoz
+					// /Custom/test1/ss.xdo
 					println reportObjectAbsolutePath
 					
 					
@@ -63,7 +61,7 @@ pipeline {
 					
 					
 					// Execute the SOAP web service call using curl
-					def objectexist_command = "curl --silent --header 'Content-Type: text/xml' --data @object_exist_soap_request.xml ${serviceUrl}"
+					def objectexist_command = "curl --silent --header 'Content-Type: text/xml' --data @object_exist_soap_request.xml ${env.serviceUrl}"
 					def object_exist_soap_response = bat(returnStdout: true, script: objectexist_command)
 					
 					
@@ -86,7 +84,7 @@ pipeline {
 						
 						
 						// Execute the SOAP web service call using curl
-						def deleteObjectcommand = "curl --silent --header 'Content-Type: text/xml' --data @deleteObject_SoapRequest.xml ${serviceUrl}"
+						def deleteObjectcommand = "curl --silent --header 'Content-Type: text/xml' --data @deleteObject_SoapRequest.xml ${env.serviceUrl}"
 						def deleteObject_soap_response = bat(returnStdout: true, script: deleteObjectcommand)
 						
 						
@@ -107,17 +105,13 @@ pipeline {
 					else{
 						echo "Object doesn't exist \n Uploading object"
 					}
-						
-					
-					
-	
 				}
 			}
 		}
 		stage('Move BI object to catalog server') {
             steps {
                 script {
-                    status_code = bat(returnStdout: true, script: "curl --output output.gzip -w \"%%{http_code}\" --silent --header \"Content-Type:application/xml\" -d @Payload.xml https://fa-erzp-dev12-saasfademo1.ds-fa.oraclepdemos.com:443/xmlpserver/services/v2/CatalogService").trim().split("\n")[1]
+                    status_code = bat(returnStdout: true, script: "curl --output output.gzip -w \"%%{http_code}\" --silent --header \"Content-Type:application/xml\" -d @Payload.xml ${env.serviceUrl}").trim().split("\n")[1]
 
                     echo "HTTP response status code: ${status_code}"
 
